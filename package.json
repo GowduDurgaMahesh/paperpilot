@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
     "docx": "^9.0.3",
@@ -22,6 +24,7 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.11",
