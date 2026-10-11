@@ -11,7 +11,7 @@ export function generateResearchReportPDF(project: ResearchProject): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('PaperPilot AI — Manuscript Readiness Report', 14, 18);
+  doc.text('Dr. Publish — Manuscript Readiness Report', 14, 18);
   
   // Project info
   doc.setTextColor(33, 33, 33);
@@ -70,8 +70,8 @@ export function generateResearchReportPDF(project: ResearchProject): void {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
   doc.setTextColor(102, 102, 102);
-  doc.text('Certified by PaperPilot AI Pre-Submission Verification Engine', 14, currentY);
+  doc.text('Certified by Dr. Publish Pre-Submission Verification Engine', 14, currentY);
   
   // Save file
-  doc.save(`${(project.title || 'PaperPilot-Report').replace(/[^a-zA-Z0-9]/g, '_')}_Readiness_Report.pdf`);
+  doc.save(`${(project.title || 'Dr-Publish-Report').replace(/[^a-zA-Z0-9]/g, '_')}_Readiness_Report.pdf`);
 }

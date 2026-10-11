@@ -67,7 +67,7 @@ export async function generateManuscriptDocx(project: ResearchProject): Promise<
           new Paragraph({
             children: [
               new TextRun({
-                text: 'Experimental designs and computational validation procedures were structured adhering to standardized academic reporting guidelines. Citations and reproducibility datasets are cataloged in PaperPilot.',
+                text: 'Experimental designs and computational validation procedures were structured adhering to standardized academic reporting guidelines. Citations and reproducibility datasets are cataloged in Dr. Publish.',
               }),
             ],
             spacing: { after: 200 },
@@ -94,7 +94,7 @@ export async function generateManuscriptDocx(project: ResearchProject): Promise<
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${(project.title || 'PaperPilot-Manuscript').replace(/[^a-zA-Z0-9]/g, '_')}.docx`;
+  a.download = `${(project.title || 'Dr-Publish-Manuscript').replace(/[^a-zA-Z0-9]/g, '_')}.docx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

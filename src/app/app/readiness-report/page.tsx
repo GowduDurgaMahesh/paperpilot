@@ -118,7 +118,7 @@ export default function ReadinessReportPage() {
         {/* Signoff Footer */}
         <div className="pt-6 border-t border-brand-light-gray flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-brand-gray">
           <div>
-            <span>Certified by: <strong>PaperPilot AI Pre-Review Automation Engine</strong></span>
+            <span>Certified by: <strong>Dr. Publish Pre-Review Automation Engine</strong></span>
             <div className="text-[10px] text-brand-gray mt-0.5">Verification Token: PP-2026-CERT-{currentProject.id.toUpperCase()}</div>
           </div>
           <button

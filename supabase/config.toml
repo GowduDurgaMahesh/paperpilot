@@ -1,5 +1,5 @@
-# Supabase configuration for PaperPilot
-project_id = "paperpilot"
+# Supabase configuration for Dr. Publish
+project_id = "paperpilot-dev"
 
 [api]
 enabled = true

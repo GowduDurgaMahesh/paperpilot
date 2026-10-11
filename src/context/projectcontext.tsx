@@ -1,7 +1,24 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ResearchProject, QualityMetric, CitationItem, AuditLog, ResearchGap } from '@/types';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import {
+  ResearchProject,
+  QualityMetric,
+  CitationItem,
+  AuditLog,
+  ResearchGap,
+} from '@/types';
+
+import { createClient } from '@/lib/supabase/client';
 
 interface ProjectContextType {
   projects: ResearchProject[];
@@ -12,272 +29,703 @@ interface ProjectContextType {
   citations: CitationItem[];
   addCitation: (citation: Omit<CitationItem, 'id'>) => void;
   auditLogs: AuditLog[];
-  addAuditLog: (action: string, category: AuditLog['category'], details: string) => void;
+  addAuditLog: (
+    action: string,
+    category: AuditLog['category'],
+    details: string
+  ) => void;
   qualityMetrics: QualityMetric[];
   researchGaps: ResearchGap[];
   isAnalyzing: boolean;
   runAnalysis: () => Promise<void>;
 }
 
-const defaultProjects: ResearchProject[] = [
-  {
-    id: 'proj-1',
-    title: 'Transformer Attention Mechanisms in Distributed Edge Latency Optimization',
-    abstract: 'Edge-native deep learning pipelines suffer from significant bandwidth and computational bottlenecks during multi-modal inference. This paper proposes a sparse recurrent attention pruning mechanism tailored for quantized tensor operations on micro-accelerators.',
-    authors: ['Dr. Lohit Sharma', 'Biswaranjan P.', 'Elena Rostova, Ph.D.'],
-    field: 'Computer Science & AI',
-    targetJournal: 'IEEE Transactions on Neural Networks & Learning Systems',
-    status: 'ready',
-    readinessScore: 92,
-    wordCount: 7850,
-    citationCount: 46,
-    createdAt: '2026-09-14T10:00:00Z',
-    updatedAt: '2026-10-09T18:30:00Z',
-    fullText: 'Edge-native deep learning pipelines suffer from significant bandwidth and computational bottlenecks during multi-modal inference...'
-  },
-  {
-    id: 'proj-2',
-    title: 'Biomarker Synthesis and CRISPR Cas-13 Diagnostics in Microfluidic Chips',
-    abstract: 'Point-of-care viral detection requires high-fidelity enzymatic amplification without thermal cycling dependencies. Here, we present an integrated isothermal Cas-13 assay embedded within cyclic olefin copolymer microchannels.',
-    authors: ['Biswaranjan P.', 'Sarah Chen, M.D.'],
-    field: 'Bioengineering & Biomedical Sciences',
-    targetJournal: 'Nature Biomedical Engineering',
-    status: 'analyzing',
-    readinessScore: 78,
-    wordCount: 6240,
-    citationCount: 38,
-    createdAt: '2026-10-02T08:15:00Z',
-    updatedAt: '2026-10-08T12:00:00Z',
-    fullText: 'Point-of-care viral detection requires high-fidelity enzymatic amplification without thermal cycling dependencies...'
-  }
-];
+type DbProject = {
+  id: string;
+  user_id: string;
+  title: string;
+  abstract: string | null;
+  authors: string[] | null;
+  field: string | null;
+  target_journal: string | null;
+  status: ResearchProject['status'];
+  readiness_score: number | null;
+  word_count: number | null;
+  citation_count: number | null;
+  created_at: string;
+  updated_at: string;
+  full_text: string | null;
+  sections: ResearchProject['sections'] | null;
+};
 
-const defaultQualityMetrics: QualityMetric[] = [
-  {
-    category: 'Methodology & Experimental Rigor',
-    score: 95,
-    weight: 0.3,
-    status: 'passed',
-    findings: [
-      'Statistically robust ablation study with p < 0.001 significance validation',
-      'Dual baseline comparisons executed across 4 public test benches'
-    ],
-    recommendations: [
-      'Document hardware spec sheet in Section 3.2 for replication precision'
-    ]
-  },
-  {
-    category: 'Literature Grounding & Citation Quality',
-    score: 88,
-    weight: 0.25,
-    status: 'passed',
-    findings: [
-      '46 references verified across CrossRef and arXiv APIs',
-      '82% of citations published within the last 36 months'
-    ],
-    recommendations: [
-      'Add foundational paper from Vaswani et al. (2017) to Section 2'
-    ]
-  },
-  {
-    category: 'Structure & Journal Style Compliance',
-    score: 94,
-    weight: 0.2,
-    status: 'passed',
-    findings: [
-      'Adheres to IEEE two-column abstract length specifications (under 250 words)',
-      'Equations formatted cleanly with standard mathematical notation'
-    ],
-    recommendations: [
-      'Ensure high-resolution 300 DPI vectors for Figure 4 and Figure 7'
-    ]
-  },
-  {
-    category: 'Clarity & Scholarly Tone',
-    score: 86,
-    weight: 0.15,
-    status: 'warning',
-    findings: [
-      'Overall passive voice ratio is 22%, optimal for empirical sciences',
-      'Flesch-Kincaid Reading Grade Level: 15.4 (Academic Peer Review standard)'
-    ],
-    recommendations: [
-      'Reduce redundant adverbials in the Introduction paragraphs 2 and 4'
-    ]
-  },
-  {
-    category: 'Reproducibility & Ethics Disclosures',
-    score: 100,
-    weight: 0.1,
-    status: 'passed',
-    findings: [
-      'Open-source code repository and Zenodo DOI provided in data availability section',
-      'Conflict of interest and funding source declarations are intact'
-    ],
-    recommendations: []
-  }
-];
+const EMPTY_PROJECT: ResearchProject = {
+  id: '',
+  title: '',
+  abstract: '',
+  authors: [],
+  field: 'Computer Science & AI',
+  targetJournal: 'IEEE Transactions',
+  status: 'draft',
+  readinessScore: 0,
+  wordCount: 0,
+  citationCount: 0,
+  createdAt: '',
+  updatedAt: '',
+  fullText: '',
+  sections: [],
+};
 
-const defaultCitations: CitationItem[] = [
-  {
-    id: 'cit-1',
-    authors: 'Vaswani, A., Shazeer, N., Parmar, N., et al.',
-    title: 'Attention is All You Need',
-    journal: 'Advances in Neural Information Processing Systems (NeurIPS)',
-    year: 2017,
-    doi: '10.5555/3295222.3295349',
-    verified: true,
-    citationStyle: 'IEEE',
-    contextSnippet: '...standard self-attention mechanisms operate with quadratic complexity O(n^2)...'
-  },
-  {
-    id: 'cit-2',
-    authors: 'Touvrone, H., Martin, L., Stone, K., et al.',
-    title: 'Llama 2: Open Foundation and Fine-Tuned Chat Models',
-    journal: 'arXiv preprint',
-    year: 2023,
-    doi: '10.48550/arXiv.2307.09288',
-    verified: true,
-    citationStyle: 'IEEE',
-    contextSnippet: '...recent autoregressive parameter architectures require distributed tensor sharding...'
-  },
-  {
-    id: 'cit-3',
-    authors: 'Devlin, J., Chang, M. W., Lee, K., Toutanova, K.',
-    title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding',
-    journal: 'NAACL-HLT',
-    year: 2019,
-    doi: '10.18653/v1/N19-1423',
-    verified: true,
-    citationStyle: 'IEEE',
-    contextSnippet: '...bidirectional masking enforces contextual representations without auto-regressive drift...'
-  }
-];
+const ProjectContext = createContext<ProjectContextType | undefined>(
+  undefined
+);
 
-const defaultAuditLogs: AuditLog[] = [
-  {
-    id: 'log-1',
-    timestamp: '2026-10-09 18:30:12',
-    action: 'Compliance Verification Passed',
-    user: 'PaperPilot Pre-Check Engine',
-    details: 'Verified IEEE formatting constraints and abstract word limits.',
-    category: 'compliance'
-  },
-  {
-    id: 'log-2',
-    timestamp: '2026-10-09 16:45:00',
-    action: 'Manuscript Analysis Completed',
-    user: 'Biswaranjan P.',
-    details: 'Readiness evaluation calculated at 92% composite score.',
-    category: 'analysis'
-  },
-  {
-    id: 'log-3',
-    timestamp: '2026-10-09 14:10:22',
-    action: 'Citation Verification',
-    user: 'PaperPilot CrossRef Linker',
-    details: '46/46 references successfully resolved with active DOI links.',
-    category: 'edit'
-  }
-];
+function mapProject(row: DbProject): ResearchProject {
+  return {
+    id: row.id,
+    title: row.title,
+    abstract: row.abstract ?? '',
+    authors: row.authors ?? [],
+    field: row.field ?? 'Computer Science & AI',
+    targetJournal: row.target_journal ?? 'IEEE Transactions',
+    status: row.status,
+    readinessScore: row.readiness_score ?? 0,
+    wordCount: row.word_count ?? 0,
+    citationCount: row.citation_count ?? 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    fullText: row.full_text ?? '',
+    sections: row.sections ?? [],
+  };
+}
 
-const defaultResearchGaps: ResearchGap[] = [
-  {
-    id: 'gap-1',
-    title: 'Ultra-low Precision Quantization Fallback under Real-time Drift',
-    description: 'Existing transformer optimizers lack dynamic recovery routines when int4 quantization precision drops below classification safety margins in autonomous edge nodes.',
-    impactPotential: 'High',
-    suggestedMethodology: 'Apply speculative dynamic calibration with residual error reservoirs.',
-    relatedLiterature: ['Zhang et al. (2024)', 'Dettmers et al. (2023)']
-  },
-  {
-    id: 'gap-2',
-    title: 'Thermal Throttling Feedback into Dynamic Batch Window Size',
-    description: 'Prior architectures measure only synthetic benchmark cycles rather than continuous physical junction temperature fluctuations.',
-    impactPotential: 'Medium',
-    suggestedMethodology: 'Embed hardware register polling in the scheduler dispatch queue.',
-    relatedLiterature: ['Chen & Kumar (2025)']
-  }
-];
+function mapCitation(row: Record<string, unknown>): CitationItem {
+  return {
+    id: String(row.id),
+    authors: String(row.authors ?? ''),
+    title: String(row.title ?? ''),
+    journal: String(row.journal ?? ''),
+    year: typeof row.year === 'number' ? row.year : 0,
+    doi: String(row.doi ?? ''),
+    verified: Boolean(row.verified),
+    citationStyle: (
+      row.citation_style ?? 'IEEE'
+    ) as CitationItem['citationStyle'],
+    contextSnippet: String(row.context_snippet ?? ''),
+  };
+}
 
-const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
+function mapQualityMetric(
+  row: Record<string, unknown>
+): QualityMetric {
+  return {
+    category: String(row.category ?? ''),
+    score: Number(row.score ?? 0),
+    weight: Number(row.weight ?? 0.2),
+    status: row.status as QualityMetric['status'],
+    findings: Array.isArray(row.findings)
+      ? row.findings.map(String)
+      : [],
+    recommendations: Array.isArray(row.recommendations)
+      ? row.recommendations.map(String)
+      : [],
+  };
+}
 
-export function ProjectProvider({ children }: { children: React.ReactNode }) {
-  const [projects, setProjects] = useState<ResearchProject[]>(defaultProjects);
-  const [currentProject, setCurrentProject] = useState<ResearchProject>(defaultProjects[0]);
-  const [citations, setCitations] = useState<CitationItem[]>(defaultCitations);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(defaultAuditLogs);
-  const [qualityMetrics, setQualityMetrics] = useState<QualityMetric[]>(defaultQualityMetrics);
-  const [researchGaps] = useState<ResearchGap[]>(defaultResearchGaps);
+function mapResearchGap(row: Record<string, unknown>): ResearchGap {
+  return {
+    id: String(row.id),
+    title: String(row.title ?? ''),
+    description: String(row.description ?? ''),
+    impactPotential: (
+      row.impact_potential ?? 'Medium'
+    ) as ResearchGap['impactPotential'],
+    suggestedMethodology: String(row.suggested_methodology ?? ''),
+    relatedLiterature: Array.isArray(row.related_literature)
+      ? row.related_literature.map(String)
+      : [],
+  };
+}
+
+function mapAuditLog(row: Record<string, unknown>): AuditLog {
+  const createdAt = String(row.created_at ?? new Date().toISOString());
+
+  return {
+    id: String(row.id),
+    timestamp: createdAt.replace('T', ' ').substring(0, 19),
+    action: String(row.action ?? ''),
+    user: String(row.user_name ?? 'Current User'),
+    details: String(row.details ?? ''),
+    category: (row.category ?? 'edit') as AuditLog['category'],
+  };
+}
+
+export function ProjectProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+
+  const [projects, setProjects] = useState<ResearchProject[]>([]);
+  const [currentProject, setCurrentProjectState] =
+    useState<ResearchProject>(EMPTY_PROJECT);
+
+  const [citations, setCitations] = useState<CitationItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [qualityMetrics, setQualityMetrics] = useState<QualityMetric[]>([]);
+  const [researchGaps, setResearchGaps] = useState<ResearchGap[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState('Current User');
 
-  const updateCurrentProject = (updates: Partial<ResearchProject>) => {
-    setCurrentProject((prev) => {
-      const updated = { ...prev, ...updates, updatedAt: new Date().toISOString() };
-      setProjects((list) => list.map((p) => (p.id === prev.id ? updated : p)));
-      return updated;
+  // Load the signed-in user's projects. RLS remains the database
+  // security boundary; the user_id filter is an additional restriction.
+  useEffect(() => {
+    let active = true;
+
+    async function loadProjects() {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (authError || !user) {
+        setUserId(null);
+        setUserName('Current User');
+        setProjects([]);
+        setCurrentProjectState(EMPTY_PROJECT);
+        setCitations([]);
+        setAuditLogs([]);
+        setQualityMetrics([]);
+        setResearchGaps([]);
+        return;
+      }
+
+      setUserId(user.id);
+
+      const metadataName =
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        user.email?.split('@')[0];
+
+      setUserName(
+        typeof metadataName === 'string' && metadataName.trim()
+          ? metadataName.trim()
+          : 'Current User'
+      );
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (!active) return;
+
+      if (error) {
+        console.error('Failed to load projects:', error.message);
+        return;
+      }
+
+      const loadedProjects = ((data ?? []) as DbProject[]).map(mapProject);
+
+      setProjects(loadedProjects);
+
+      setCurrentProjectState((previous) => {
+        if (previous.id) {
+          const stillExists = loadedProjects.find(
+            (project) => project.id === previous.id
+          );
+
+          if (stillExists) return stillExists;
+        }
+
+        return loadedProjects[0] ?? EMPTY_PROJECT;
+      });
+    }
+
+    void loadProjects();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      // Defer the refresh so auth state changes can finish first.
+      setTimeout(() => {
+        if (active) void loadProjects();
+      }, 0);
     });
-  };
 
-  const addProject = (projectData: Partial<ResearchProject>): ResearchProject => {
-    const newProj: ResearchProject = {
-      id: `proj-${Date.now()}`,
-      title: projectData.title || 'Untitled Manuscript',
-      abstract: projectData.abstract || '',
-      authors: projectData.authors || ['Lead Researcher'],
-      field: projectData.field || 'Computer Science',
-      targetJournal: projectData.targetJournal || 'IEEE Transactions',
-      status: 'analyzing',
-      readinessScore: 75,
-      wordCount: projectData.wordCount || 4500,
-      citationCount: projectData.citationCount || 24,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      fullText: projectData.fullText || ''
+    return () => {
+      active = false;
+      subscription.unsubscribe();
     };
-    setProjects((prev) => [newProj, ...prev]);
-    setCurrentProject(newProj);
-    addAuditLog('Created New Manuscript Project', 'edit', `Created: ${newProj.title}`);
-    return newProj;
-  };
+  }, [supabase]);
 
-  const addCitation = (item: Omit<CitationItem, 'id'>) => {
-    const newCit: CitationItem = {
-      id: `cit-${Date.now()}`,
-      ...item
+  // Load data belonging to the selected project only.
+  useEffect(() => {
+    let active = true;
+
+    async function loadProjectData() {
+      if (!userId || !currentProject.id) {
+        setCitations([]);
+        setAuditLogs([]);
+        setQualityMetrics([]);
+        setResearchGaps([]);
+        return;
+      }
+
+      const projectId = currentProject.id;
+
+      const [
+        citationsResult,
+        logsResult,
+        metricsResult,
+        gapsResult,
+      ] = await Promise.all([
+        supabase
+          .from('citations')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false })
+          .limit(100),
+
+        supabase
+          .from('quality_metrics')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('research_gaps')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (!active) return;
+
+      if (citationsResult.error) {
+        console.error(
+          'Failed to load citations:',
+          citationsResult.error.message
+        );
+      } else {
+        setCitations(
+          (citationsResult.data ?? []).map((row) =>
+            mapCitation(row as Record<string, unknown>)
+          )
+        );
+      }
+
+      if (logsResult.error) {
+        console.error(
+          'Failed to load audit logs:',
+          logsResult.error.message
+        );
+      } else {
+        setAuditLogs(
+          (logsResult.data ?? []).map((row) =>
+            mapAuditLog(row as Record<string, unknown>)
+          )
+        );
+      }
+
+      if (metricsResult.error) {
+        console.error(
+          'Failed to load quality metrics:',
+          metricsResult.error.message
+        );
+      } else {
+        setQualityMetrics(
+          (metricsResult.data ?? []).map((row) =>
+            mapQualityMetric(row as Record<string, unknown>)
+          )
+        );
+      }
+
+      if (gapsResult.error) {
+        console.error(
+          'Failed to load research gaps:',
+          gapsResult.error.message
+        );
+      } else {
+        setResearchGaps(
+          (gapsResult.data ?? []).map((row) =>
+            mapResearchGap(row as Record<string, unknown>)
+          )
+        );
+      }
+    }
+
+    void loadProjectData();
+
+    return () => {
+      active = false;
     };
-    setCitations((prev) => [newCit, ...prev]);
-    addAuditLog('Added Academic Citation', 'edit', `Added reference: ${item.title}`);
-  };
+  }, [supabase, userId, currentProject.id]);
 
-  const addAuditLog = (action: string, category: AuditLog['category'], details: string) => {
-    const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      action,
-      user: 'Current User',
-      details,
-      category
-    };
-    setAuditLogs((prev) => [newLog, ...prev]);
-  };
+  const setCurrentProject = useCallback(
+    (project: ResearchProject) => {
+      // Ignore projects that aren't in this user's loaded project list.
+      const ownedProject = projects.find((item) => item.id === project.id);
 
-  const runAnalysis = async () => {
+      if (ownedProject) {
+        setCurrentProjectState(ownedProject);
+      }
+    },
+    [projects]
+  );
+
+  const addAuditLog = useCallback(
+    (
+      action: string,
+      category: AuditLog['category'],
+      details: string
+    ) => {
+      if (!userId) {
+        console.error('Cannot save an audit log without a signed-in user.');
+        return;
+      }
+
+      const projectId = currentProject.id || null;
+
+      if (projectId && !projects.some((project) => project.id === projectId)) {
+        console.error('Cannot log activity for an unowned project.');
+        return;
+      }
+
+      void (async () => {
+        const { data, error } = await supabase
+          .from('audit_logs')
+          .insert({
+            user_id: userId,
+            project_id: projectId,
+            action,
+            category,
+            details,
+            user_name: userName,
+          })
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('Failed to save audit log:', error.message);
+          return;
+        }
+
+        if (projectId === currentProject.id && data) {
+          setAuditLogs((previous) => [
+            mapAuditLog(data as Record<string, unknown>),
+            ...previous,
+          ]);
+        }
+      })();
+    },
+    [supabase, userId, userName, currentProject.id, projects]
+  );
+
+  const updateCurrentProject = useCallback(
+    (updates: Partial<ResearchProject>) => {
+      const projectId = currentProject.id;
+
+      if (!userId || !projectId) {
+        console.error('Select or create a saved project before editing.');
+        return;
+      }
+
+      if (!projects.some((project) => project.id === projectId)) {
+        console.error('Cannot update a project that is not owned by this user.');
+        return;
+      }
+
+      const databaseUpdates: Record<string, unknown> = {};
+
+      if (updates.title !== undefined) databaseUpdates.title = updates.title;
+      if (updates.abstract !== undefined) databaseUpdates.abstract = updates.abstract;
+      if (updates.authors !== undefined) databaseUpdates.authors = updates.authors;
+      if (updates.field !== undefined) databaseUpdates.field = updates.field;
+      if (updates.targetJournal !== undefined) {
+        databaseUpdates.target_journal = updates.targetJournal;
+      }
+      if (updates.status !== undefined) databaseUpdates.status = updates.status;
+      if (updates.readinessScore !== undefined) {
+        databaseUpdates.readiness_score = updates.readinessScore;
+      }
+      if (updates.wordCount !== undefined) databaseUpdates.word_count = updates.wordCount;
+      if (updates.citationCount !== undefined) {
+        databaseUpdates.citation_count = updates.citationCount;
+      }
+      if (updates.fullText !== undefined) databaseUpdates.full_text = updates.fullText;
+      if (updates.sections !== undefined) databaseUpdates.sections = updates.sections;
+
+      if (Object.keys(databaseUpdates).length === 0) return;
+
+      databaseUpdates.updated_at = new Date().toISOString();
+
+      const previousProject = currentProject;
+      const optimisticProject = {
+        ...previousProject,
+        ...updates,
+        updatedAt: String(databaseUpdates.updated_at),
+      };
+
+      setCurrentProjectState(optimisticProject);
+      setProjects((previous) =>
+        previous.map((project) =>
+          project.id === projectId ? optimisticProject : project
+        )
+      );
+
+      void (async () => {
+        const { data, error } = await supabase
+          .from('projects')
+          .update(databaseUpdates)
+          .eq('id', projectId)
+          .eq('user_id', userId)
+          .select('*')
+          .maybeSingle();
+
+        if (error || !data) {
+          console.error(
+            'Failed to save project changes:',
+            error?.message ?? 'No project was updated.'
+          );
+
+          const { data: freshData, error: refreshError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', projectId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (refreshError || !freshData) return;
+
+          const freshProject = mapProject(freshData as DbProject);
+
+          setProjects((previous) =>
+            previous.map((project) =>
+              project.id === projectId ? freshProject : project
+            )
+          );
+
+          setCurrentProjectState((previous) =>
+            previous.id === projectId ? freshProject : previous
+          );
+
+          return;
+        }
+
+        const savedProject = mapProject(data as DbProject);
+
+        setProjects((previous) =>
+          previous.map((project) =>
+            project.id === projectId ? savedProject : project
+          )
+        );
+
+        setCurrentProjectState((previous) =>
+          previous.id === projectId ? savedProject : previous
+        );
+      })();
+    },
+    [supabase, userId, currentProject, projects]
+  );
+
+  const addProject = useCallback(
+    (projectData: Partial<ResearchProject>): ResearchProject => {
+      const now = new Date().toISOString();
+
+      // This temporary ID is replaced with the database UUID after insert.
+      const temporaryId = `pending-${Date.now()}`;
+
+      const newProject: ResearchProject = {
+        ...EMPTY_PROJECT,
+        ...projectData,
+        id: temporaryId,
+        title: projectData.title?.trim() || 'Untitled Manuscript',
+        abstract: projectData.abstract ?? '',
+        authors: projectData.authors ?? [],
+        field: projectData.field ?? 'Computer Science & AI',
+        targetJournal: projectData.targetJournal ?? 'IEEE Transactions',
+        status: 'draft',
+        readinessScore: projectData.readinessScore ?? 0,
+        wordCount: projectData.wordCount ?? 0,
+        citationCount: projectData.citationCount ?? 0,
+        createdAt: now,
+        updatedAt: now,
+        fullText: projectData.fullText ?? '',
+        sections: projectData.sections ?? [],
+      };
+
+      if (!userId) {
+        console.error('Sign in before creating a project.');
+        return newProject;
+      }
+
+      setProjects((previous) => [newProject, ...previous]);
+      setCurrentProjectState(newProject);
+
+      void (async () => {
+        const { data, error } = await supabase
+          .from('projects')
+          .insert({
+            user_id: userId,
+            title: newProject.title,
+            abstract: newProject.abstract,
+            authors: newProject.authors,
+            field: newProject.field,
+            target_journal: newProject.targetJournal,
+            status: newProject.status,
+            readiness_score: newProject.readinessScore,
+            word_count: newProject.wordCount,
+            citation_count: newProject.citationCount,
+            full_text: newProject.fullText ?? '',
+            sections: newProject.sections ?? [],
+          })
+          .select('*')
+          .single();
+
+        if (error || !data) {
+          console.error(
+            'Failed to create project:',
+            error?.message ?? 'No project was returned.'
+          );
+
+          setProjects((previous) =>
+            previous.filter((project) => project.id !== temporaryId)
+          );
+
+          setCurrentProjectState((previous) =>
+            previous.id === temporaryId
+              ? projects[0] ?? EMPTY_PROJECT
+              : previous
+          );
+
+          return;
+        }
+
+        const savedProject = mapProject(data as DbProject);
+
+        setProjects((previous) =>
+          previous.map((project) =>
+            project.id === temporaryId ? savedProject : project
+          )
+        );
+
+        setCurrentProjectState((previous) =>
+          previous.id === temporaryId ? savedProject : previous
+        );
+
+        addAuditLog(
+          'Created New Manuscript Project',
+          'edit',
+          `Created: ${savedProject.title}`
+        );
+      })();
+
+      return newProject;
+    },
+    [supabase, userId, projects, addAuditLog]
+  );
+
+  const addCitation = useCallback(
+    (item: Omit<CitationItem, 'id'>) => {
+      const projectId = currentProject.id;
+
+      if (
+        !userId ||
+        !projectId ||
+        !projects.some((project) => project.id === projectId)
+      ) {
+        console.error('Select a saved project before adding a citation.');
+        return;
+      }
+
+      void (async () => {
+        const { data, error } = await supabase
+          .from('citations')
+          .insert({
+            project_id: projectId,
+            authors: item.authors,
+            title: item.title,
+            journal: item.journal,
+            year: item.year || null,
+            doi: item.doi || null,
+            verified: item.verified,
+            citation_style: item.citationStyle,
+            context_snippet: item.contextSnippet,
+          })
+          .select('*')
+          .single();
+
+        if (error || !data) {
+          console.error(
+            'Failed to save citation:',
+            error?.message ?? 'No citation was returned.'
+          );
+          return;
+        }
+
+        setCitations((previous) => [
+          mapCitation(data as Record<string, unknown>),
+          ...previous,
+        ]);
+
+        addAuditLog(
+          'Added Academic Citation',
+          'edit',
+          `Added reference: ${item.title}`
+        );
+
+        // Keep the displayed citation count aligned with the saved rows.
+        const { count, error: countError } = await supabase
+          .from('citations')
+          .select('id', { count: 'exact', head: true })
+          .eq('project_id', projectId);
+
+        if (!countError && count !== null) {
+          updateCurrentProject({ citationCount: count });
+        }
+      })();
+    },
+    [
+      supabase,
+      userId,
+      currentProject.id,
+      projects,
+      addAuditLog,
+      updateCurrentProject,
+    ]
+  );
+
+  const runAnalysis = useCallback(async () => {
+    if (!userId || !currentProject.id) {
+      console.error('Save a project before requesting analysis.');
+      return;
+    }
+
+    // No real analysis service is connected in this context yet.
+    // Never fabricate a score or mark an unanalysed project as ready.
     setIsAnalyzing(true);
-    addAuditLog('Triggered Deep Quality Analysis', 'analysis', `Analysis initiated for ${currentProject.title}`);
-    
-    // Simulate multi-stage scientific evaluation
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    const newScore = Math.min(98, Math.max(82, currentProject.readinessScore + 4));
-    updateCurrentProject({
-      readinessScore: newScore,
-      status: 'ready'
-    });
-    
-    setIsAnalyzing(false);
-    addAuditLog('Deep Quality Analysis Complete', 'analysis', `Score updated to ${newScore}%`);
-  };
+
+    try {
+      addAuditLog(
+        'Analysis Requested',
+        'analysis',
+        `Analysis was requested for "${currentProject.title}". No analysis engine is configured in this context, so no readiness score was changed.`
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [userId, currentProject, addAuditLog]);
 
   return (
     <ProjectContext.Provider
@@ -294,7 +742,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         qualityMetrics,
         researchGaps,
         isAnalyzing,
-        runAnalysis
+        runAnalysis,
       }}
     >
       {children}
@@ -304,8 +752,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
 export function useProject() {
   const context = useContext(ProjectContext);
+
   if (!context) {
     throw new Error('useProject must be used within a ProjectProvider');
   }
+
   return context;
 }

@@ -3,11 +3,19 @@ import './globals.css';
 import { ProjectProvider } from '@/context/projectcontext';
 
 export const metadata: Metadata = {
-  title: 'PaperPilot AI — Manuscript Readiness & Journal Compliance Platform',
-  description: 'AI-assisted academic research platform for automated manuscript readiness evaluation, journal compliance verification, peer-review risk detection, and seamless submission preparation.',
+  applicationName: 'Dr. Publish',
+  title: 'Dr. Publish | Manuscript Readiness & Journal Compliance',
+  description: 'From Research Draft to Publication Ready. Prepare manuscripts with readiness evaluation, journal compliance checks, peer-review risk detection, and submission support.',
   openGraph: {
-    title: 'PaperPilot AI',
-    description: 'Autonomous pre-submission evaluation and academic formatting suite.',
+    title: 'Dr. Publish',
+    description: 'From Research Draft to Publication Ready. Manuscript readiness, journal compliance, and submission preparation in one place.',
+    siteName: 'Dr. Publish',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Dr. Publish',
+    description: 'From Research Draft to Publication Ready. Manuscript readiness, journal compliance, and submission preparation in one place.',
   },
 };
 
