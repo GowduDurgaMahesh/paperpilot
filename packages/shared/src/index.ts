@@ -1,13 +1,12 @@
 ﻿
 import { z } from "zod";
 
-// Existing document schemas
+// Document format
 export const documentFormatSchema = z.enum(["pdf", "docx"]);
 
 export type DocumentFormat = z.infer<typeof documentFormatSchema>;
 
-// Request to audit the structure of extracted document text.
-// This validates the text only; it does not persist or transmit it.
+// Document structure audit request
 export const documentStructureAuditRequestSchema = z.object({
   documentText: z.string().trim().min(1).max(2_000_000),
 });
@@ -16,15 +15,24 @@ export type DocumentStructureAuditRequest = z.infer<
   typeof documentStructureAuditRequestSchema
 >;
 
-// Retained for compatibility with the current UI.
-// The adaptive interview will replace this workflow later.
+// Research quality analysis request
+// Validates extracted text without persisting document content.
+export const researchQualityRequestSchema = z.object({
+  documentText: z.string().trim().min(1).max(2_000_000),
+});
+
+export type ResearchQualityRequest = z.infer<
+  typeof researchQualityRequestSchema
+>;
+
+// Research question
 export const researchQuestionSchema = z.object({
   question: z.string().trim().min(5).max(1000),
 });
 
 export type ResearchQuestion = z.infer<typeof researchQuestionSchema>;
 
-// Existing source coverage schemas
+// Research source coverage
 export const sourceCoverageSchema = z.enum([
   "metadata_only",
   "abstract_reviewed",
@@ -54,8 +62,7 @@ export const interviewStatusSchema = z.enum([
 
 export type InterviewStatus = z.infer<typeof interviewStatusSchema>;
 
-// Only the hosted provider that the user is explicitly agreeing to use.
-// Provider configuration and provider credentials remain server-side.
+// Explicit consent for hosted AI providers
 export const hostedAiConsentSchema = z.object({
   accepted: z.literal(true),
   provider: z.string().trim().min(1).max(100),
@@ -65,8 +72,7 @@ export const hostedAiConsentSchema = z.object({
 
 export type HostedAiConsent = z.infer<typeof hostedAiConsentSchema>;
 
-// Request to begin an interview.
-// The API must validate consent again before any hosted AI request.
+// Start an interview request
 export const startInterviewSchema = z.object({
   filename: z.string().trim().min(1).max(255),
   documentText: z.string().min(1).max(2_000_000),
@@ -75,6 +81,7 @@ export const startInterviewSchema = z.object({
 
 export type StartInterviewRequest = z.infer<typeof startInterviewSchema>;
 
+// Submit an interview answer
 export const submitInterviewAnswerSchema = z.object({
   answer: z.string().trim().min(1).max(5000),
 });
@@ -83,7 +90,7 @@ export type SubmitInterviewAnswerRequest = z.infer<
   typeof submitInterviewAnswerSchema
 >;
 
-// Public question shape returned by the interview API.
+// Public interview question
 export const interviewQuestionSchema = z.object({
   id: z.string().trim().min(1).max(100),
   text: z.string().trim().min(1).max(2000),
@@ -93,7 +100,7 @@ export const interviewQuestionSchema = z.object({
 
 export type InterviewQuestion = z.infer<typeof interviewQuestionSchema>;
 
-// Interview response contract.
+// Interview response contract
 // A completed interview must not include a next question.
 export const interviewResponseSchema = z
   .object({

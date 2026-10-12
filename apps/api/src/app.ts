@@ -5,6 +5,7 @@ import helmet from "helmet";
 import multer from "multer";
 import documentsRouter from "./documents.js";
 import interviewsRouter from "./interviews.js";
+import researchQualityRouter from "./research-quality-route.js";
 import structureAuditRouter from "./structure-audit-route.js";
 
 const app = express();
@@ -32,6 +33,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/documents", documentsRouter);
 app.use("/api/documents/audit-structure", structureAuditRouter);
+app.use("/api/research-quality/analyze", researchQualityRouter);
 app.use("/api/interviews", interviewsRouter);
 
 app.use((_req, res) => {
@@ -78,7 +80,8 @@ app.use(
       res.status(422).json({
         error: {
           code: "DOCUMENT_PROCESSING_FAILED",
-          message: "The document could not be processed. Try another valid file.",
+          message:
+            "The document could not be processed. Try another valid file.",
         },
       });
       return;

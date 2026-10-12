@@ -7,27 +7,49 @@ import app from "../apps/api/src/app.js";
 let server: Server;
 let baseUrl: string;
 
-const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
+const completeManuscript = [
+  "Abstract",
+  "This research examines an illustrative problem using a clearly described approach. The study explains its purpose, summarizes the methods, and reports the principal findings. The conclusions are limited to the example presented in this manuscript and should be interpreted in context.",
+  "Introduction",
+  "This section introduces the research problem, describes its background, explains why the question matters, and identifies the objective of the study. It outlines the context and explains the motivation for the research.",
+  "Methodology",
+  "The research design uses a dataset containing 120 observations. The procedure describes the sample selection, data collection, experimental protocol, and statistical analysis. These details are included to help readers understand how the study was conducted and how its findings were derived.",
+  "Results",
+  "The analysis measured the performance of the proposed approach. The observed accuracy was 92%, and the results are summarized in Table 1. These figures are illustrative test data for checking this software, not scientific findings.",
+  "Discussion",
+  "The findings are interpreted in relation to the research question. The discussion considers possible explanations, alternative interpretations, and the limits of the evidence. Additional research may be needed to examine whether the observations generalize to other settings.",
+  "Conclusion",
+  "The example demonstrates how the proposed method can be described and evaluated. The conclusion summarizes the work and acknowledges that further validation would be needed before drawing broader scientific conclusions.",
+  "References",
+  "Example Author. 2025. Example reference used only for software testing.",
+].join("\n");
+
 beforeAll(async () => {
   server = createServer(app);
+
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => resolve());
   });
+
   const address = server.address();
+
   if (!address || typeof address === "string") {
     throw new Error("Could not determine the API test server port.");
   }
+
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
 afterAll(async () => {
   if (server?.listening) {
     await new Promise<void>((resolve, reject) => {
-      server.close((error) => error ? reject(error) : resolve());
+      server.close((error) => (error ? reject(error) : resolve()));
     });
   }
 });
@@ -39,6 +61,7 @@ async function uploadFile(
 ) {
   const form = new FormData();
   form.append("file", new Blob([content], { type: contentType }), filename);
+
   return fetch(`${baseUrl}/api/documents/extract`, {
     method: "POST",
     body: form,
@@ -47,6 +70,14 @@ async function uploadFile(
 
 async function auditStructure(body: unknown) {
   return fetch(`${baseUrl}/api/documents/audit-structure`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function analyzeResearchQuality(body: unknown) {
+  return fetch(`${baseUrl}/api/research-quality/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -92,6 +123,7 @@ function makeCrc32(data: Buffer): number {
 
   for (const byte of data) {
     crc ^= byte;
+
     for (let bit = 0; bit < 8; bit++) {
       crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
     }
@@ -385,11 +417,85 @@ describe("Document structure audit API", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.audit.limitations.some((item: string) =>
-      item.includes("plagiarism"),
-    )).toBe(true);
-    expect(body.audit.limitations.some((item: string) =>
-      item.includes("novelty"),
-    )).toBe(true);
+    expect(
+      body.audit.limitations.some((item: string) =>
+        item.includes("plagiarism"),
+      ),
+    ).toBe(true);
+    expect(
+      body.audit.limitations.some((item: string) =>
+        item.includes("novelty"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("Research quality analysis API", () => {
+  it("returns a heuristic report and privacy metadata for valid text", async () => {
+    const response = await analyzeResearchQuality({
+      documentText: completeManuscript,
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.report.reportType).toBe("research_quality_review");
+    expect(body.report.method).toBe("transparent_text_heuristics");
+    expect(body.report.findings.length).toBeGreaterThan(0);
+    expect(body.report.summary).toBeDefined();
+    expect(body.report.limitations.length).toBeGreaterThan(0);
+    expect(body.privacy).toEqual({
+      persisted: false,
+      storage: "memory_only",
+      externalServicesUsed: false,
+    });
+  });
+
+  it("rejects a missing documentText field", async () => {
+    const response = await analyzeResearchQuality({});
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_RESEARCH_QUALITY_REQUEST");
+  });
+
+  it("rejects empty and whitespace-only document text", async () => {
+    for (const documentText of ["", "   \n\t "]) {
+      const response = await analyzeResearchQuality({ documentText });
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.error.code).toBe("INVALID_RESEARCH_QUALITY_REQUEST");
+    }
+  });
+
+  it("rejects non-string document text", async () => {
+    const response = await analyzeResearchQuality({ documentText: 123 });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_RESEARCH_QUALITY_REQUEST");
+  });
+
+  it("rejects document text exceeding the supported character limit", async () => {
+    const response = await analyzeResearchQuality({
+      documentText: "a".repeat(2_000_001),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_RESEARCH_QUALITY_REQUEST");
+  });
+
+  it("does not return unsupported plagiarism, novelty, or readiness scores", async () => {
+    const response = await analyzeResearchQuality({
+      documentText: completeManuscript,
+    });
+    const body = await response.json();
+    const reportJson = JSON.stringify(body.report);
+
+    expect(reportJson).not.toContain('"plagiarismScore"');
+    expect(reportJson).not.toContain('"noveltyScore"');
+    expect(reportJson).not.toContain('"readinessScore"');
+    expect(reportJson).toContain("not a validated scientific-quality instrument");
   });
 });
