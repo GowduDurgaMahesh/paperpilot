@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import {
   startInterviewSchema,
@@ -30,6 +31,9 @@ function sendServiceError(
     INTERVIEW_SESSION_NOT_FOUND: 404,
     INTERVIEW_NOT_IN_PROGRESS: 409,
     INVALID_PROVIDER_RESPONSE: 502,
+    INTERVIEW_CAPACITY_REACHED: 503,
+    INTERVIEW_BUSY: 409,
+    INTERVIEW_PROVIDER_TIMEOUT: 504,
   };
 
   res.status(statusByCode[error.code]).json({
@@ -132,7 +136,8 @@ router.delete("/:sessionId", (req, res) => {
     res.status(404).json({
       error: {
         code: "INTERVIEW_SESSION_NOT_FOUND",
-        message: "This interview session was not found or has already been deleted.",
+        message:
+          "This interview session was not found or has already been deleted.",
       },
     });
     return;
