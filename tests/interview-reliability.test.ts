@@ -28,11 +28,11 @@ const context = {
 function createProvider(
   answerInterview: InterviewProvider["answerInterview"] = async () =>
     nextQuestion,
+  startInterview: InterviewProvider["startInterview"] = async () =>
+    firstQuestion,
 ): InterviewProvider {
   return {
-    async startInterview() {
-      return firstQuestion;
-    },
+    startInterview,
     answerInterview,
   };
 }
@@ -238,5 +238,98 @@ describe("Interview service reliability", () => {
 
     expect(retry.answeredCount).toBe(1);
     expect(retry.question?.id).toBe(nextQuestion.id);
+  });
+
+  it("rejects a 101st active session", async () => {
+    const service = new InterviewService(createProvider());
+
+    for (let index = 0; index < 100; index += 1) {
+      await service.start(`paper-${index}.pdf`, context.documentText);
+    }
+
+    await expect(
+      service.start("paper-101.pdf", context.documentText),
+    ).rejects.toMatchObject({
+      code: "INTERVIEW_CAPACITY_REACHED",
+    });
+  });
+
+  it("does not exceed capacity when starts run concurrently", async () => {
+    let startCalls = 0;
+    let releaseProvider!: (question: typeof firstQuestion) => void;
+
+    const providerPromise = new Promise<typeof firstQuestion>((resolve) => {
+      releaseProvider = resolve;
+    });
+
+    const provider = createProvider(
+      async () => nextQuestion,
+      async () => {
+        startCalls += 1;
+        return providerPromise;
+      },
+    );
+
+    const service = new InterviewService(provider);
+
+    const starts = Array.from({ length: 101 }, (_, index) =>
+      service.start(`paper-${index}.pdf`, context.documentText),
+    );
+
+    // Allow each start to reserve capacity before releasing the provider.
+    await Promise.resolve();
+
+    expect(startCalls).toBe(100);
+
+    releaseProvider(firstQuestion);
+
+    const results = await Promise.allSettled(starts);
+    const successful = results.filter((result) => result.status === "fulfilled");
+    const rejected = results.filter((result) => result.status === "rejected");
+
+    expect(successful).toHaveLength(100);
+    expect(rejected).toHaveLength(1);
+
+    const rejection = rejected[0];
+
+    expect(rejection?.status).toBe("rejected");
+
+    if (rejection?.status === "rejected") {
+      expect(rejection.reason).toBeInstanceOf(InterviewServiceError);
+      expect(rejection.reason.code).toBe("INTERVIEW_CAPACITY_REACHED");
+    }
+  });
+
+  it("does not record an answer if the session expires during provider processing", async () => {
+    let clock = 1_000;
+    let releaseProvider!: (question: typeof nextQuestion) => void;
+
+    const providerPromise = new Promise<typeof nextQuestion>((resolve) => {
+      releaseProvider = resolve;
+    });
+
+    const service = new InterviewService(
+      createProvider(() => providerPromise),
+      () => clock,
+    );
+
+    const started = await service.start("paper.pdf", context.documentText);
+
+    const pending = service.submitAnswer(
+      started.sessionId,
+      "My research answer.",
+    );
+
+    clock += 30 * 60 * 1000;
+
+    releaseProvider(nextQuestion);
+
+    await expect(pending).rejects.toMatchObject({
+      code: "INTERVIEW_SESSION_NOT_FOUND",
+    });
+
+    expect(() => service.get(started.sessionId)).toThrow(
+      "not found or has expired",
+    );
   });
 });
