@@ -1,0 +1,29 @@
+{
+  "name": "paperpilot",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Paperpilot V2 - research discovery and manuscript analysis",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=@paperpilot/api",
+    "dev:web": "npm run dev --workspace=@paperpilot/web",
+    "build": "npm run build --workspace=@paperpilot/shared && npm run build --workspace=@paperpilot/api && npm run build --workspace=@paperpilot/web",
+    "typecheck": "npm run typecheck --workspace=@paperpilot/shared && npm run typecheck --workspace=@paperpilot/api && npm run typecheck --workspace=@paperpilot/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
