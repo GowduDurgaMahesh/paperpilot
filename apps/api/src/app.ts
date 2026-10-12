@@ -1,9 +1,11 @@
+
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import multer from "multer";
 import documentsRouter from "./documents.js";
 import interviewsRouter from "./interviews.js";
+import structureAuditRouter from "./structure-audit-route.js";
 
 const app = express();
 
@@ -29,6 +31,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/documents", documentsRouter);
+app.use("/api/documents/audit-structure", structureAuditRouter);
 app.use("/api/interviews", interviewsRouter);
 
 app.use((_req, res) => {
@@ -40,54 +43,56 @@ app.use((_req, res) => {
   });
 });
 
-app.use((
-  error: unknown,
-  req: express.Request,
-  res: express.Response,
-  _next: express.NextFunction,
-) => {
-  if (res.headersSent) {
-    return;
-  }
+app.use(
+  (
+    error: unknown,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    if (res.headersSent) {
+      return;
+    }
 
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error: {
+            code: "FILE_TOO_LARGE",
+            message: "The maximum upload size is 20 MB.",
+          },
+        });
+        return;
+      }
+
+      res.status(400).json({
         error: {
-          code: "FILE_TOO_LARGE",
-          message: "The maximum upload size is 20 MB.",
+          code: "UPLOAD_REJECTED",
+          message: "The upload was rejected. Submit one file at a time.",
         },
       });
       return;
     }
 
-    res.status(400).json({
+    if (req.path.startsWith("/api/documents/")) {
+      res.status(422).json({
+        error: {
+          code: "DOCUMENT_PROCESSING_FAILED",
+          message: "The document could not be processed. Try another valid file.",
+        },
+      });
+      return;
+    }
+
+    console.error("Unexpected API request failure.");
+
+    res.status(500).json({
       error: {
-        code: "UPLOAD_REJECTED",
-        message: "The upload was rejected. Submit one file at a time.",
+        code: "INTERNAL_SERVER_ERROR",
+        message: "The request could not be completed. Please try again.",
       },
     });
-    return;
-  }
-
-  if (req.path.startsWith("/api/documents/")) {
-    res.status(422).json({
-      error: {
-        code: "DOCUMENT_PROCESSING_FAILED",
-        message: "The document could not be processed. Try another valid file.",
-      },
-    });
-    return;
-  }
-
-  console.error("Unexpected API request failure.");
-
-  res.status(500).json({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "The request could not be completed. Please try again.",
-    },
-  });
-});
+  },
+);
 
 export default app;

@@ -1,6 +1,6 @@
-
 import { useRef, useState } from "react";
 import { researchQuestionSchema } from "@paperpilot/shared";
+import StructureAuditPanel from "./StructureAuditPanel";
 
 const API_URL = "http://127.0.0.1:4000/api/documents/extract";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -122,7 +122,7 @@ export default function App() {
 
       if (!response.ok) {
         throw new Error(
-          body.error?.message ||
+          body.error?.message ??
             `Extraction failed (HTTP ${response.status}).`,
         );
       }
@@ -130,9 +130,11 @@ export default function App() {
       if (
         !body.document ||
         typeof body.document.text !== "string" ||
-        !["completed", "no_extractable_text", "empty_document"].includes(
-          body.document.extractionStatus,
-        )
+        ![
+          "completed",
+          "no_extractable_text",
+          "empty_document",
+        ].includes(body.document.extractionStatus)
       ) {
         throw new Error(
           "The server response did not contain a valid extraction result.",
@@ -244,8 +246,8 @@ export default function App() {
           more rigorous.
         </h1>
         <p className="intro">
-          Work on one manuscript at a time. Review its extracted text and
-          define the research question before analysis.
+          Work on one manuscript at a time. Review its extracted text,
+          audit its structure, and define your research question.
         </p>
       </section>
 
@@ -345,9 +347,7 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <h3 className="drop-title">
-                    Drop your manuscript here
-                  </h3>
+                  <h3 className="drop-title">Drop your manuscript here</h3>
                   <p className="drop-description">
                     or browse files from your computer
                   </p>
@@ -361,9 +361,7 @@ export default function App() {
                 </>
               )}
 
-              <p className="file-guidance">
-                PDF or DOCX · Maximum 20 MiB
-              </p>
+              <p className="file-guidance">PDF or DOCX · Maximum 20 MiB</p>
             </div>
 
             <div className="upload-actions">
@@ -467,11 +465,16 @@ export default function App() {
               </pre>
             </div>
 
+            {hasUsableText && (
+              <StructureAuditPanel documentText={document.text} />
+            )}
+
             <div className="notice">
-              <strong>Extraction only — analysis has not run</strong>
+              <strong>Current analysis capabilities</strong>
               <p>
-                No plagiarism, AI-content detection, novelty, readiness, or
-                citation scores have been generated.
+                The structure audit checks recognizable section headings.
+                Plagiarism, AI-content detection, novelty, readiness, and
+                citation-accuracy scores have not been implemented.
               </p>
             </div>
 
@@ -567,7 +570,7 @@ export default function App() {
                 maxLength={1000}
                 required
                 aria-invalid={Boolean(questionError)}
-                aria-describedby="question-help question-count question-error"
+                aria-describedby="question-help question-count"
                 style={{
                   display: "block",
                   width: "100%",
@@ -605,11 +608,7 @@ export default function App() {
               </div>
 
               {questionError && (
-                <p
-                  id="question-error"
-                  role="alert"
-                  style={{ color: "#b42318", marginTop: "8px" }}
-                >
+                <p id="question-error" role="alert" style={{ color: "#b42318" }}>
                   {questionError}
                 </p>
               )}
@@ -618,15 +617,11 @@ export default function App() {
                 <strong>Why we ask this</strong>
                 <p>
                   The question will help define the scope of future research
-                  checks. Entering it does not run analysis or generate
-                  scores.
+                  checks. Entering it does not run analysis or generate scores.
                 </p>
               </div>
 
-              <div
-                className="result-footer"
-                style={{ marginTop: "20px" }}
-              >
+              <div className="result-footer" style={{ marginTop: "20px" }}>
                 <button
                   className="button button-secondary"
                   type="button"
@@ -689,12 +684,12 @@ export default function App() {
             </div>
 
             <div className="notice">
-              <strong>Analysis is not available yet</strong>
+              <strong>Further research analysis is not available yet</strong>
               <p>
                 Your manuscript and question have been validated in this
-                browser session. No analysis request has been sent to a
-                research-analysis service, no results have been fabricated,
-                and nothing has been saved to an account.
+                browser session. No research-analysis service was called,
+                no results were fabricated, and nothing was saved to an account.
+                The structure audit is a separate, deterministic heading check.
               </p>
             </div>
 
@@ -722,7 +717,7 @@ export default function App() {
       <footer className="footer">
         <span>Paperpilot · Research with evidence.</span>
         <span>
-          Development preview · Analysis services are not connected yet.
+          Development preview · Research-analysis services are not connected yet.
         </span>
       </footer>
     </main>

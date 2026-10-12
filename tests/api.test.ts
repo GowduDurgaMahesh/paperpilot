@@ -45,6 +45,14 @@ async function uploadFile(
   });
 }
 
+async function auditStructure(body: unknown) {
+  return fetch(`${baseUrl}/api/documents/audit-structure`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 function makePdf(text: string): Buffer {
   const escaped = text
     .replace(/\\/gu, "\\\\")
@@ -311,5 +319,77 @@ describe("Document extraction API", () => {
 
     expect(response.status).toBe(413);
     expect(body.error.code).toBe("FILE_TOO_LARGE");
+  });
+});
+
+describe("Document structure audit API", () => {
+  it("returns all structure checks for valid extracted text", async () => {
+    const response = await auditStructure({
+      documentText: [
+        "Abstract",
+        "Introduction",
+        "Related Work",
+        "Methodology",
+        "Results",
+        "Discussion",
+        "Limitations",
+        "Conclusion",
+        "References",
+      ].join("\n"),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.audit.auditType).toBe("document_structure");
+    expect(body.audit.method).toBe("heading_detection");
+    expect(body.audit.checks).toHaveLength(9);
+    expect(body.audit.detectedCount).toBe(9);
+    expect(body.audit.notDetectedCount).toBe(0);
+    expect(body.privacy).toEqual({
+      persisted: false,
+      storage: "memory_only",
+      externalServicesUsed: false,
+    });
+  });
+
+  it("rejects a missing documentText field", async () => {
+    const response = await auditStructure({});
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_AUDIT_REQUEST");
+  });
+
+  it("rejects empty or whitespace-only document text", async () => {
+    for (const documentText of ["", "   \n\t "]) {
+      const response = await auditStructure({ documentText });
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.error.code).toBe("INVALID_AUDIT_REQUEST");
+    }
+  });
+
+  it("rejects non-string document text", async () => {
+    const response = await auditStructure({ documentText: 123 });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_AUDIT_REQUEST");
+  });
+
+  it("does not claim to assess plagiarism or novelty", async () => {
+    const response = await auditStructure({
+      documentText: "Abstract\nIntroduction",
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.audit.limitations.some((item: string) =>
+      item.includes("plagiarism"),
+    )).toBe(true);
+    expect(body.audit.limitations.some((item: string) =>
+      item.includes("novelty"),
+    )).toBe(true);
   });
 });

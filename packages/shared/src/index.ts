@@ -6,6 +6,16 @@ export const documentFormatSchema = z.enum(["pdf", "docx"]);
 
 export type DocumentFormat = z.infer<typeof documentFormatSchema>;
 
+// Request to audit the structure of extracted document text.
+// This validates the text only; it does not persist or transmit it.
+export const documentStructureAuditRequestSchema = z.object({
+  documentText: z.string().trim().min(1).max(2_000_000),
+});
+
+export type DocumentStructureAuditRequest = z.infer<
+  typeof documentStructureAuditRequestSchema
+>;
+
 // Retained for compatibility with the current UI.
 // The adaptive interview will replace this workflow later.
 export const researchQuestionSchema = z.object({
@@ -65,8 +75,6 @@ export const startInterviewSchema = z.object({
 
 export type StartInterviewRequest = z.infer<typeof startInterviewSchema>;
 
-// A user's answer to the current interview question.
-// Session ownership and question ordering must also be checked by the API.
 export const submitInterviewAnswerSchema = z.object({
   answer: z.string().trim().min(1).max(5000),
 });
