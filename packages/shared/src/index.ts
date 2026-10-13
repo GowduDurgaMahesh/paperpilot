@@ -25,6 +25,16 @@ export type ResearchQualityRequest = z.infer<
   typeof researchQualityRequestSchema
 >;
 
+// Research gap analysis request
+// Analyses extracted manuscript text without persisting document content.
+export const researchGapAnalysisRequestSchema = z.object({
+  documentText: z.string().trim().min(1).max(2_000_000),
+});
+
+export type ResearchGapAnalysisRequest = z.infer<
+  typeof researchGapAnalysisRequestSchema
+>;
+
 // Research question
 export const researchQuestionSchema = z.object({
   question: z.string().trim().min(5).max(1000),
@@ -123,7 +133,7 @@ export const interviewResponseSchema = z
       context.addIssue({
         code: "custom",
         path: ["question"],
-        message: "Only an active interview may include a next question.",
+        message: "Only an active interview may include its next question.",
       });
     }
   });
