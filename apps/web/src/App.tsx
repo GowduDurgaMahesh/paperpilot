@@ -5,6 +5,7 @@ import StructureAuditPanel from "./StructureAuditPanel";
 import ResearchQualityPanel from "./ResearchQualityPanel";
 import AcademicSourcesPanel from "./AcademicSourcesPanel";
 import CitationConsistencyPanel from "./CitationConsistencyPanel";
+import CitationStyleValidationPanel from "./CitationStyleValidationPanel";
 
 const API_URL = "http://127.0.0.1:4000/api/documents/extract";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -496,6 +497,7 @@ export default function App() {
                 <AcademicSourcesPanel />
 
                 <CitationConsistencyPanel documentText={document.text} />
+                <CitationStyleValidationPanel documentText={document.text} />
               </>
             )}
 

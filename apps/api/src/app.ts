@@ -7,6 +7,7 @@ import documentsRouter from "./documents.js";
 import interviewsRouter from "./interviews.js";
 import academicSourcesRouter from "./academic-sources-route.js";
 import citationConsistencyRouter from "./citation-consistency-route.js";
+import citationStyleValidationRouter from "./citation-style-validation-route.js";
 import researchQualityRouter from "./research-quality-route.js";
 import structureAuditRouter from "./structure-audit-route.js";
 
@@ -38,6 +39,10 @@ app.use("/api/documents/audit-structure", structureAuditRouter);
 app.use("/api/research-quality/analyze", researchQualityRouter);
 app.use("/api/academic-sources/search", academicSourcesRouter);
 app.use("/api/citation-consistency/analyze", citationConsistencyRouter);
+app.use(
+  "/api/citation-style-validation/analyze",
+  citationStyleValidationRouter,
+);
 app.use("/api/interviews", interviewsRouter);
 
 app.use((_req, res) => {
