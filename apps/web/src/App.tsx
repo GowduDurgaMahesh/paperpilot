@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { researchQuestionSchema } from "@paperpilot/shared";
 import StructureAuditPanel from "./StructureAuditPanel";
 import ResearchQualityPanel from "./ResearchQualityPanel";
+import ResearchGapAnalysisPanel from "./ResearchGapAnalysisPanel";
 import AcademicSourcesPanel from "./AcademicSourcesPanel";
 import CitationConsistencyPanel from "./CitationConsistencyPanel";
 import CitationStyleValidationPanel from "./CitationStyleValidationPanel";
@@ -494,10 +495,17 @@ export default function App() {
                   filename={document.filename}
                 />
 
+                <ResearchGapAnalysisPanel
+                  documentText={document.text}
+                />
+
                 <AcademicSourcesPanel />
 
                 <CitationConsistencyPanel documentText={document.text} />
-                <CitationStyleValidationPanel documentText={document.text} />
+
+                <CitationStyleValidationPanel
+                  documentText={document.text}
+                />
               </>
             )}
 
@@ -506,18 +514,20 @@ export default function App() {
               <p>
                 Structure auditing checks recognizable section headings.
                 Research-quality review checks selected text indicators.
-                Academic source discovery retrieves publication metadata from
-                Crossref. Citation consistency checks supported numbered
-                citation patterns against detected reference entries. These
-                features do not prove scientific correctness. Plagiarism
-                detection, AI-content detection, novelty assessment, citation
+                Research Gap Analysis identifies candidate statements from
+                manuscript wording and does not establish novelty. Academic
+                source discovery retrieves publication metadata from Crossref.
+                Citation consistency checks supported numbered citation
+                patterns against detected reference entries. These features
+                do not prove scientific correctness. Plagiarism detection,
+                AI-content detection, verified novelty assessment, citation
                 accuracy, and research-readiness scores are not implemented.
               </p>
             </div>
 
             <div className="result-footer">
               <span>
-                Privacy: document extraction and citation analysis use
+                Privacy: document extraction and manuscript text analyses use
                 memory-only processing. Academic search sends your query to
                 Crossref.
               </span>
@@ -766,11 +776,13 @@ export default function App() {
               <p>
                 The Research Quality Review uses deterministic text heuristics
                 and the Structure Audit checks recognizable section headings.
-                Citation consistency checks numbered citation matching only.
-                None of these validates scientific conclusions, detects
-                plagiarism, or proves novelty. Academic source discovery is a
-                separate Crossref metadata search. No account or database
-                persistence is provided by these features.
+                Research Gap Analysis detects candidate gap statements but
+                does not verify them against current literature. Citation
+                consistency checks numbered citation matching only. None of
+                these validates scientific conclusions, detects plagiarism,
+                or proves novelty. Academic source discovery is a separate
+                Crossref metadata search. No account or database persistence
+                is provided by these features.
               </p>
             </div>
 
