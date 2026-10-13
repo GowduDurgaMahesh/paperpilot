@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { researchQuestionSchema } from "@paperpilot/shared";
 import StructureAuditPanel from "./StructureAuditPanel";
+import ResearchQualityPanel from "./ResearchQualityPanel";
 
 const API_URL = "http://127.0.0.1:4000/api/documents/extract";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -246,8 +247,9 @@ export default function App() {
           more rigorous.
         </h1>
         <p className="intro">
-          Work on one manuscript at a time. Review its extracted text,
-          audit its structure, and define your research question.
+          Work on one manuscript at a time. Extract its text, audit its
+          structure, review research-quality indicators, and define your
+          research question.
         </p>
       </section>
 
@@ -269,14 +271,14 @@ export default function App() {
                   : "Upload your manuscript"
                 : stage === "question"
                   ? "Define your research question"
-                  : "Review your analysis request"}
+                  : "Review your manuscript analysis"}
             </h2>
             <p className="section-description">
               {stage === "document"
                 ? "Choose a text-based PDF or DOCX document."
                 : stage === "question"
                   ? "Enter one primary question for this manuscript."
-                  : "Confirm the manuscript and question before the next development stage."}
+                  : "Review the research-quality findings and your research question."}
             </p>
           </div>
           <span className="step-count">{currentStep} / 03</span>
@@ -466,15 +468,23 @@ export default function App() {
             </div>
 
             {hasUsableText && (
-              <StructureAuditPanel documentText={document.text} />
+              <>
+                <StructureAuditPanel documentText={document.text} />
+                <ResearchQualityPanel
+                  documentText={document.text}
+                  filename={document.filename}
+                />
+              </>
             )}
 
             <div className="notice">
               <strong>Current analysis capabilities</strong>
               <p>
-                The structure audit checks recognizable section headings.
-                Plagiarism, AI-content detection, novelty, readiness, and
-                citation-accuracy scores have not been implemented.
+                Structure auditing checks recognizable section headings.
+                Research-quality review checks selected text indicators.
+                Neither feature proves scientific correctness. Plagiarism,
+                AI-content detection, novelty, citation accuracy, and
+                research-readiness scores are not implemented.
               </p>
             </div>
 
@@ -616,8 +626,10 @@ export default function App() {
               <div className="notice" style={{ marginTop: "20px" }}>
                 <strong>Why we ask this</strong>
                 <p>
-                  The question will help define the scope of future research
-                  checks. Entering it does not run analysis or generate scores.
+                  The question helps define the scope of future research
+                  checks. Entering it does not run question-specific analysis
+                  or generate scores. The manuscript review above is a
+                  separate text-based heuristic.
                 </p>
               </div>
 
@@ -647,7 +659,9 @@ export default function App() {
               <span className="success-icon" aria-hidden="true">✓</span>
               <div className="result-banner-copy">
                 <strong>Request details validated</strong>
-                <span>No research analysis has been executed.</span>
+                <span>
+                  The manuscript review ran separately in the document step.
+                </span>
               </div>
             </div>
 
@@ -684,12 +698,13 @@ export default function App() {
             </div>
 
             <div className="notice">
-              <strong>Further research analysis is not available yet</strong>
+              <strong>What has actually been checked</strong>
               <p>
-                Your manuscript and question have been validated in this
-                browser session. No research-analysis service was called,
-                no results were fabricated, and nothing was saved to an account.
-                The structure audit is a separate, deterministic heading check.
+                The Research Quality Review uses deterministic text heuristics
+                and the Structure Audit checks recognizable section headings.
+                Neither validates scientific conclusions, detects plagiarism,
+                or proves novelty. No account or database persistence is
+                provided by these features.
               </p>
             </div>
 
@@ -717,7 +732,7 @@ export default function App() {
       <footer className="footer">
         <span>Paperpilot · Research with evidence.</span>
         <span>
-          Development preview · Research-analysis services are not connected yet.
+          Development preview · Heuristic findings require human interpretation.
         </span>
       </footer>
     </main>
