@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { researchQuestionSchema } from "@paperpilot/shared";
 import StructureAuditPanel from "./StructureAuditPanel";
 import ResearchQualityPanel from "./ResearchQualityPanel";
+import AcademicSourcesPanel from "./AcademicSourcesPanel";
 
 const API_URL = "http://127.0.0.1:4000/api/documents/extract";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -234,6 +235,7 @@ export default function App() {
           <span className="brand-mark">P</span>
           <span>Paperpilot</span>
         </a>
+
         <span className="status">
           <span className="status-dot" /> V2 · Development
         </span>
@@ -248,8 +250,8 @@ export default function App() {
         </h1>
         <p className="intro">
           Work on one manuscript at a time. Extract its text, audit its
-          structure, review research-quality indicators, and define your
-          research question.
+          structure, review research-quality indicators, discover academic
+          sources, and define your research question.
         </p>
       </section>
 
@@ -264,6 +266,7 @@ export default function App() {
                   ? "RESEARCH QUESTION"
                   : "REVIEW"}
             </p>
+
             <h2 id="workspace-heading">
               {stage === "document"
                 ? document
@@ -273,6 +276,7 @@ export default function App() {
                   ? "Define your research question"
                   : "Review your manuscript analysis"}
             </h2>
+
             <p className="section-description">
               {stage === "document"
                 ? "Choose a text-based PDF or DOCX document."
@@ -281,6 +285,7 @@ export default function App() {
                   : "Review the research-quality findings and your research question."}
             </p>
           </div>
+
           <span className="step-count">{currentStep} / 03</span>
         </div>
 
@@ -295,6 +300,7 @@ export default function App() {
               onDragOver={(event) => event.preventDefault()}
               onDragLeave={(event) => {
                 event.preventDefault();
+
                 if (
                   !event.currentTarget.contains(
                     event.relatedTarget as Node | null,
@@ -371,6 +377,7 @@ export default function App() {
                 <span aria-hidden="true">⌑</span> Processed in memory; this
                 endpoint does not save your file.
               </p>
+
               <button
                 className="button button-primary"
                 type="button"
@@ -404,6 +411,7 @@ export default function App() {
               <span className="success-icon" aria-hidden="true">
                 {hasUsableText ? "✓" : "!"}
               </span>
+
               <div className="result-banner-copy">
                 <strong>
                   {document.extractionStatus === "completed"
@@ -414,6 +422,7 @@ export default function App() {
                 </strong>
                 <span>{document.filename}</span>
               </div>
+
               <button
                 className="text-button reset-button"
                 type="button"
@@ -428,14 +437,17 @@ export default function App() {
                 <span>Word count</span>
                 <strong>{document.wordCount.toLocaleString()}</strong>
               </div>
+
               <div className="stat-card">
                 <span>Characters</span>
                 <strong>{document.characterCount.toLocaleString()}</strong>
               </div>
+
               <div className="stat-card">
                 <span>File size</span>
                 <strong>{formatBytes(document.sizeBytes)}</strong>
               </div>
+
               <div className="stat-card">
                 <span>Pages</span>
                 <strong>
@@ -452,6 +464,7 @@ export default function App() {
                   <h3>Extracted text</h3>
                   <p>Content returned by the document extraction API</p>
                 </div>
+
                 <button
                   className="button button-secondary button-small"
                   type="button"
@@ -461,6 +474,7 @@ export default function App() {
                   {copied ? "Copied" : "Copy text"}
                 </button>
               </div>
+
               <pre className="extracted-text">
                 {document.text ||
                   "No text could be extracted from this document. Scanned PDFs may require OCR, which is not implemented yet."}
@@ -470,10 +484,13 @@ export default function App() {
             {hasUsableText && (
               <>
                 <StructureAuditPanel documentText={document.text} />
+
                 <ResearchQualityPanel
                   documentText={document.text}
                   filename={document.filename}
                 />
+
+                <AcademicSourcesPanel />
               </>
             )}
 
@@ -482,14 +499,17 @@ export default function App() {
               <p>
                 Structure auditing checks recognizable section headings.
                 Research-quality review checks selected text indicators.
-                Neither feature proves scientific correctness. Plagiarism,
-                AI-content detection, novelty, citation accuracy, and
-                research-readiness scores are not implemented.
+                Academic source discovery retrieves publication metadata from
+                Crossref. These features do not prove scientific correctness.
+                Plagiarism detection, AI-content detection, novelty assessment,
+                citation accuracy, and research-readiness scores are not
+                implemented.
               </p>
             </div>
 
             <div className="result-footer">
-              <span>Privacy: memory-only API processing</span>
+              <span>Privacy: document extraction uses memory-only processing. Academic search sends your query to Crossref.</span>
+
               {hasUsableText ? (
                 <button
                   className="button button-primary"
@@ -515,11 +535,15 @@ export default function App() {
         {document && stage === "question" && (
           <div className="results">
             <div className="result-banner">
-              <span className="success-icon" aria-hidden="true">✓</span>
+              <span className="success-icon" aria-hidden="true">
+                ✓
+              </span>
+
               <div className="result-banner-copy">
                 <strong>Manuscript extracted</strong>
                 <span>{document.filename}</span>
               </div>
+
               <button
                 className="text-button reset-button"
                 type="button"
@@ -534,6 +558,7 @@ export default function App() {
                 <span>Words</span>
                 <strong>{document.wordCount.toLocaleString()}</strong>
               </div>
+
               <div className="stat-card">
                 <span>Characters</span>
                 <strong>{document.characterCount.toLocaleString()}</strong>
@@ -557,97 +582,105 @@ export default function App() {
                 </div>
               </div>
 
-              <label
-                htmlFor="research-question"
-                style={{
-                  display: "block",
-                  fontWeight: 600,
-                  marginBottom: "8px",
-                }}
-              >
-                Your research question
-              </label>
-              <textarea
-                id="research-question"
-                name="researchQuestion"
-                value={question}
-                onChange={(event) => {
-                  setQuestion(event.target.value);
-                  setQuestionError("");
-                }}
-                placeholder="Example: How does machine learning improve the early detection of diabetic retinopathy?"
-                rows={5}
-                maxLength={1000}
-                required
-                aria-invalid={Boolean(questionError)}
-                aria-describedby="question-help question-count"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "14px",
-                  border: questionError
-                    ? "1px solid #c2413b"
-                    : "1px solid var(--border, #d9dedb)",
-                  borderRadius: "10px",
-                  background: "var(--surface, #ffffff)",
-                  color: "var(--text, #202923)",
-                  font: "inherit",
-                  resize: "vertical",
-                  minHeight: "120px",
-                }}
-              />
-
-              <div
-                id="question-help"
-                style={{ marginTop: "8px", color: "var(--muted, #68736c)" }}
-              >
-                Enter between 5 and 1,000 characters. One question per
-                manuscript.
-              </div>
-              <div
-                id="question-count"
-                style={{
-                  marginTop: "6px",
-                  textAlign: "right",
-                  color: "var(--muted, #68736c)",
-                  fontSize: "0.875rem",
-                }}
-              >
-                {question.length.toLocaleString()} / 1,000
-              </div>
-
-              {questionError && (
-                <p id="question-error" role="alert" style={{ color: "#b42318" }}>
-                  {questionError}
-                </p>
-              )}
-
-              <div className="notice" style={{ marginTop: "20px" }}>
-                <strong>Why we ask this</strong>
-                <p>
-                  The question helps define the scope of future research
-                  checks. Entering it does not run question-specific analysis
-                  or generate scores. The manuscript review above is a
-                  separate text-based heuristic.
-                </p>
-              </div>
-
-              <div className="result-footer" style={{ marginTop: "20px" }}>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => setStage("document")}
+              <div style={{ padding: "18px" }}>
+                <label
+                  htmlFor="research-question"
+                  style={{
+                    display: "block",
+                    fontWeight: 600,
+                    marginBottom: "8px",
+                  }}
                 >
-                  Back
-                </button>
-                <button
-                  className="button button-primary"
-                  type="submit"
-                  disabled={!question.trim() || !questionIsValid}
+                  Your research question
+                </label>
+
+                <textarea
+                  id="research-question"
+                  name="researchQuestion"
+                  value={question}
+                  onChange={(event) => {
+                    setQuestion(event.target.value);
+                    setQuestionError("");
+                  }}
+                  placeholder="Example: How does machine learning improve the early detection of diabetic retinopathy?"
+                  rows={5}
+                  maxLength={1000}
+                  required
+                  aria-invalid={Boolean(questionError)}
+                  aria-describedby="question-help question-count"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "14px",
+                    border: questionError
+                      ? "1px solid #c2413b"
+                      : "1px solid var(--border, #d9dedb)",
+                    borderRadius: "10px",
+                    background: "var(--surface, #ffffff)",
+                    color: "var(--text, #202923)",
+                    font: "inherit",
+                    resize: "vertical",
+                    minHeight: "120px",
+                  }}
+                />
+
+                <div
+                  id="question-help"
+                  style={{
+                    marginTop: "8px",
+                    color: "var(--muted, #68736c)",
+                  }}
                 >
-                  Review request <span aria-hidden="true">→</span>
-                </button>
+                  Enter between 5 and 1,000 characters. One question per
+                  manuscript.
+                </div>
+
+                <div
+                  id="question-count"
+                  style={{
+                    marginTop: "6px",
+                    textAlign: "right",
+                    color: "var(--muted, #68736c)",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {question.length.toLocaleString()} / 1,000
+                </div>
+
+                {questionError && (
+                  <p id="question-error" role="alert" style={{ color: "#b42318" }}>
+                    {questionError}
+                  </p>
+                )}
+
+                <div className="notice" style={{ marginTop: "20px" }}>
+                  <strong>Why we ask this</strong>
+                  <p>
+                    The question helps define the scope of future research
+                    checks. Entering it does not run question-specific analysis
+                    or generate scores. The manuscript review above is a
+                    separate text-based heuristic.
+                  </p>
+                </div>
+
+                <div className="result-footer" style={{ marginTop: "20px" }}>
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => setStage("document")}
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    className="button button-primary"
+                    type="submit"
+                    disabled={!question.trim() || !questionIsValid}
+                  >
+                    Review request <span aria-hidden="true">→</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -656,7 +689,10 @@ export default function App() {
         {document && stage === "review" && (
           <div className="results" aria-live="polite">
             <div className="result-banner">
-              <span className="success-icon" aria-hidden="true">✓</span>
+              <span className="success-icon" aria-hidden="true">
+                ✓
+              </span>
+
               <div className="result-banner-copy">
                 <strong>Request details validated</strong>
                 <span>
@@ -672,6 +708,7 @@ export default function App() {
                   {document.filename}
                 </strong>
               </div>
+
               <div className="stat-card">
                 <span>Extracted words</span>
                 <strong>{document.wordCount.toLocaleString()}</strong>
@@ -682,19 +719,30 @@ export default function App() {
               <div className="text-panel-heading">
                 <div>
                   <h3>Your primary research question</h3>
-                  <p>Review this question before the next development stage.</p>
+                  <p>
+                    Review this question before the next development stage.
+                  </p>
                 </div>
               </div>
-              <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                {question}
-              </p>
-              <button
-                className="button button-secondary button-small"
-                type="button"
-                onClick={() => setStage("question")}
-              >
-                Edit question
-              </button>
+
+              <div style={{ padding: "18px" }}>
+                <p
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {question}
+                </p>
+
+                <button
+                  className="button button-secondary button-small"
+                  type="button"
+                  onClick={() => setStage("question")}
+                >
+                  Edit question
+                </button>
+              </div>
             </div>
 
             <div className="notice">
@@ -703,8 +751,9 @@ export default function App() {
                 The Research Quality Review uses deterministic text heuristics
                 and the Structure Audit checks recognizable section headings.
                 Neither validates scientific conclusions, detects plagiarism,
-                or proves novelty. No account or database persistence is
-                provided by these features.
+                or proves novelty. Academic source discovery is a separate
+                Crossref metadata search. No account or database persistence
+                is provided by these features.
               </p>
             </div>
 
@@ -716,6 +765,7 @@ export default function App() {
               >
                 Review manuscript
               </button>
+
               <button
                 className="button button-primary"
                 type="button"
