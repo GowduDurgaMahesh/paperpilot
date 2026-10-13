@@ -1,5 +1,13 @@
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { createServer, type Server } from "node:http";
 
 vi.mock("../apps/api/src/academic-sources.js", () => ({
@@ -197,6 +205,26 @@ describe("analyzeCitationConsistency", () => {
         limitation.includes("does not establish"),
       ),
     ).toBe(true);
+  });
+
+  it("handles flattened PDF reference entries with publication years", () => {
+    const text =
+      "Research supports this approach [1]. " +
+      "Further evidence confirms it [2]. " +
+      "References: [1] A. Smith, Research Methods, Academic Press, 2022. " +
+      "[2] B. Kumar, Data Analysis, Science Publishing, 2023.";
+
+    const result = analyzeCitationConsistency(text);
+
+    expect(result.citationStyle).toBe("numbered");
+    expect(result.inTextCitationNumbers).toEqual([1, 2]);
+    expect(result.referenceNumbers).toEqual([1, 2]);
+    expect(result.matchedNumbers).toEqual([1, 2]);
+    expect(result.summary.referenceEntryCount).toBe(2);
+    expect(result.summary.matchedCount).toBe(2);
+    expect(result.summary.missingReferenceCount).toBe(0);
+    expect(result.summary.uncitedReferenceCount).toBe(0);
+    expect(result.summary.duplicateReferenceCount).toBe(0);
   });
 });
 

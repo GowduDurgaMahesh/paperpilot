@@ -43,9 +43,6 @@ const REFERENCE_HEADING_LINE =
 const FLATTENED_REFERENCE_HEADING =
   /\b(?:references|bibliography|works\s+cited|literature\s+cited)\b\s*:?\s+(?=(?:\[\d{1,4}\]|\d{1,4}[.)])\s+\S)/iu;
 
-const FLATTENED_REFERENCE_ENTRY =
-  /(?:^|\s)(?:\[(\d{1,4})\]|(\d{1,4})[.)])\s+([\s\S]*?)(?=\s+(?:\[\d{1,4}\]|\d{1,4}[.)])\s+|$)/gu;
-
 const LIMITATIONS = [
   "Matching is based on citation numbers, not source identity or bibliographic content.",
   "Reference entries must start with [number], number., or number).",
@@ -95,7 +92,6 @@ function splitAtReferenceHeading(
 ): { bodyText: string; referenceText: string } | null {
   const lines = text.split("\n");
 
-  // First prefer a standalone heading when line breaks are preserved.
   for (let index = 0; index < lines.length; index += 1) {
     if (REFERENCE_HEADING_LINE.test(lines[index] ?? "")) {
       return {
@@ -105,7 +101,6 @@ function splitAtReferenceHeading(
     }
   }
 
-  // PDF extraction can flatten the heading and references onto one line.
   const match = FLATTENED_REFERENCE_HEADING.exec(text);
 
   if (!match || match.index === undefined) {
@@ -121,46 +116,59 @@ function splitAtReferenceHeading(
 }
 
 function countReferenceEntries(referenceText: string): Map<number, number> {
-  const counts = new Map<number, number>();
+  const bracketedCounts = new Map<number, number>();
 
-  function add(number: number): void {
-    if (Number.isInteger(number) && number > 0) {
-      counts.set(number, (counts.get(number) ?? 0) + 1);
-    }
-  }
+  // Match only bracketed reference labels, e.g. [1] Author. Title.
+  // Do not interpret publication years such as 2022 as labels.
+  const bracketedEntry =
+    /(?:^|\s)\[(\d{1,4})\]\s+([\s\S]*?)(?=\s+\[\d{1,4}\]\s+|$)/gu;
 
-  // Count entries that start on separate lines.
-  for (const match of referenceText.matchAll(NUMBERED_REFERENCE)) {
-    add(Number(match[1] ?? match[2]));
-  }
+  for (const match of referenceText.matchAll(bracketedEntry)) {
+    const number = Number(match[1]);
+    const entryText = match[2]?.trim();
 
-  // Also recognize adjacent entries in flattened PDF text.
-  // A numbered entry already detected at the start of a line is not
-  // counted twice just because this second parser sees it again.
-  const flattenedCounts = new Map<number, number>();
-
-  for (const match of referenceText.matchAll(FLATTENED_REFERENCE_ENTRY)) {
-    const number = Number(match[1] ?? match[2]);
-
-    if (
-      Number.isInteger(number) &&
-      number > 0 &&
-      match[3]?.trim()
-    ) {
-      flattenedCounts.set(
+    if (number > 0 && entryText) {
+      bracketedCounts.set(
         number,
-        (flattenedCounts.get(number) ?? 0) + 1,
+        (bracketedCounts.get(number) ?? 0) + 1,
       );
     }
   }
 
-  // Use the flattened parser's complete result when it finds entries.
-  // It handles both one-line and multi-line reference lists.
-  if (flattenedCounts.size > 0) {
-    return flattenedCounts;
+  if (bracketedCounts.size > 0) {
+    return bracketedCounts;
   }
 
-  return counts;
+  // Fallback for numbered entries such as 1. Author. Title.
+  const lineCounts = new Map<number, number>();
+
+  for (const match of referenceText.matchAll(NUMBERED_REFERENCE)) {
+    const number = Number(match[1] ?? match[2]);
+
+    if (number > 0) {
+      lineCounts.set(number, (lineCounts.get(number) ?? 0) + 1);
+    }
+  }
+
+  if (lineCounts.size > 0) {
+    return lineCounts;
+  }
+
+  // Last resort for flattened, unbracketed entries such as:
+  // 1. First source details 2. Second source details
+  const flattenedUnbracketed =
+    /(?:^|\s)(\d{1,4})[.)]\s+([\s\S]*?)(?=\s+\d{1,4}[.)]\s+|$)/gu;
+
+  for (const match of referenceText.matchAll(flattenedUnbracketed)) {
+    const number = Number(match[1]);
+    const entryText = match[2]?.trim();
+
+    if (number > 0 && entryText) {
+      lineCounts.set(number, (lineCounts.get(number) ?? 0) + 1);
+    }
+  }
+
+  return lineCounts;
 }
 
 function buildUnknownResult(): CitationConsistencyResult {
@@ -180,7 +188,7 @@ function buildUnknownResult(): CitationConsistencyResult {
         code: "UNSUPPORTED_CITATION_STYLE",
         severity: "info",
         message:
-          "Only numbered bracket citations such as [1] and [2, 3] are checked. Author–year, footnote, superscript, and other citation styles are not validated.",
+          "Only numbered bracket citations such as [1] and [2, 3] are checked. Author-year, footnote, superscript, and other citation styles are not validated.",
       },
     ],
     summary: {
@@ -277,7 +285,7 @@ export function analyzeCitationConsistency(
     code: "UNSUPPORTED_CITATION_STYLE",
     severity: "info",
     message:
-      "Only numbered bracket citations such as [1] and [2, 3] are checked. Author–year, footnote, superscript, and other citation styles are not validated.",
+      "Only numbered bracket citations such as [1] and [2, 3] are checked. Author-year, footnote, superscript, and other citation styles are not validated.",
   });
 
   return {
